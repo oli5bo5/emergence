@@ -1,0 +1,346 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergence Explorer - Gemini Chat Experiment</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-areas: 
+                "header header"
+                "chat suggestions"
+                "input suggestions";
+            grid-template-rows: 60px 1fr 80px;
+            grid-template-columns: 1fr 350px;
+            height: 100vh;
+            gap: 1px;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .header {
+            grid-area: header;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+
+        .chat-area {
+            grid-area: chat;
+            background: rgba(255,255,255,0.98);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 80%;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.human {
+            background: #667eea;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .message.ai {
+            background: #f1f3f4;
+            color: #333;
+            margin-right: auto;
+            border-left: 4px solid #00ff88;
+        }
+
+        .message.system {
+            background: rgba(255, 193, 7, 0.1);
+            color: #856404;
+            text-align: center;
+            margin: 0 auto;
+            font-style: italic;
+            font-size: 14px;
+        }
+
+        .message.thinking {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            margin-right: auto;
+            font-style: italic;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-area {
+            grid-area: input;
+            background: rgba(255,255,255,0.98);
+            padding: 20px;
+            border-top: 1px solid #ddd;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #ddd;
+            border-radius: 20px;
+            font-size: 16px;
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+            outline: none;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        .chat-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .send-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            min-width: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .send-button:hover:not(:disabled) {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+
+        .send-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .suggestions-panel {
+            grid-area: suggestions;
+            background: rgba(0,0,0,0.85);
+            color: white;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .suggestions-panel h3,
+        .suggestions-panel h4 {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .suggestions-panel h4 {
+             margin-top: 20px;
+        }
+
+        #emergence-indicator-container {
+            display: flex;
+            justify-content: center;
+            padding: 10px 0;
+        }
+
+        #emergence-indicator {
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.2);
+            border: 2px solid rgba(255,255,255,0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            transition: all 0.4s ease-in-out;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5), inset 0 0 15px rgba(0,0,0,0.3);
+        }
+        
+        #emergence-indicator.active {
+            background: rgba(220, 53, 69, 0.5);
+            border-color: rgba(255, 107, 129, 0.8);
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(220, 53, 69, 0.8), 0 0 40px rgba(255, 107, 129, 0.6), inset 0 0 20px rgba(220, 53, 69, 0.5);
+        }
+
+        .indicator-label {
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0.8;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+       
+        .suggestion-item {
+            background: rgba(255,255,255,0.1);
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .suggestion-item:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateX(5px);
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-areas: 
+                    "header"
+                    "chat"
+                    "input";
+                grid-template-rows: 60px 1fr 100px;
+                grid-template-columns: 1fr;
+            }
+            
+            .suggestions-panel {
+                display: none;
+            }
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.15.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <!-- Main App -->
+    <div id="main-app" class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🧠 Emergence Explorer</h1>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <span>✨ Gemini</span>
+                <span>⏱️ <span id="timer">0:00</span></span>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="chat-area">
+            <div class="chat-messages" id="chat-messages">
+                <div class="message system">
+                    🎯 <strong>Emergenz-Experiment gestartet!</strong> Chatte frei mit Gemini über alles - Emergenz, wilde Ideen, Philosophie, oder was dir einfällt.
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-area">
+            <div class="input-container">
+                <textarea 
+                    id="chat-input" 
+                    class="chat-input" 
+                    placeholder="Schreibe deine Nachricht... (Enter zum Senden, Shift+Enter für neue Zeile)"
+                    rows="1"
+                ></textarea>
+                <button id="send-button" class="send-button" onclick="sendMessage()">
+                    <span id="send-text">Senden</span>
+                    <span id="send-loading" class="loading hidden"></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Suggestions Panel -->
+        <div class="suggestions-panel">
+            <h3>💡 Gesprächs-Starter</h3>
+            <div class="suggestion-item" onclick="sendSuggestion('Was bedeutet Emergenz in KI-Systemen wirklich? Kannst du mir Beispiele geben?')">
+                🎯 Was ist echte Emergenz?
+            </div>
+            <div class="suggestion-item" onclick="sendSuggestion('Lass uns gemeinsam ein verrücktes Geschäftsmodell erfinden - wie wäre es mit Zeitreise-Versicherungen?')">
+                🚀 Zeitreise-Versicherung entwickeln
+            </div>
+            <div class="suggestion-item" onclick="sendSuggestion('Welche deiner eigenen Antworten überraschen dich am meisten? Wie entstehen sie?')">
+                🎭 Deine Selbstreflexion
+            </div>
+            <div class="suggestion-item" onclick="sendSuggestion('Können wir zusammen etwas komplett Neues erschaffen, was keiner von uns allein gedacht hätte?')">
+                💡 Gemeinsam innovieren
+            </div>
+            <div class="suggestion-item" onclick="sendSuggestion('Erzähl mir etwas völlig Unerwartetes - überrasche mich!')">
+                ⚡ Überrasche mich!
+            </div>
+            <div class="suggestion-item" onclick="sendSuggestion('Wie würdest du eine KI entwickeln, die sich selbst langweilt und dann kreativ wird?')">
+                🤖 Gelangweilte KI erfinden
+            </div>
+
+            <h4 style="margin-top: 30px;">Emergenz Aktivität</h4>
+            <div id="emergence-indicator-container">
+                <div id="emergence-indicator">
+                    <div class="indicator-label">Aktivität</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="index.tsx"></script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
